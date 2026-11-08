@@ -42,6 +42,7 @@ button:disabled{opacity:.45;cursor:default}
 </head>
 <body>
 <main><h1>JEOPARDY!</h1><div id="app"></div></main>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -110,39 +111,60 @@ function renderGame(){
  if(g('#jn2'))g('#jn2').onclick=()=>judge(false);
  if(g('#rv'))g('#rv').onclick=reveal;
  if(g('#sk'))g('#sk').onclick=finish;
- if(g('#bz'))g('#bz').onclick=()=>{g('#bz').disabled=true;R.presence({buzz:{id:S.cid}})};
+ if(g('#bz'))g('#bz').onclick=()=>{g('#bz').disabled=true;R.send({t:'buzz',cid:S.cid})};
 }
-async function start(r){
+let P=null,conns=[],hb=null;
+function start(r){
  name=($('#nm')?$('#nm').value:name).trim().slice(0,20);
  if(!name){msg='Bitte gib einen Namen ein.';return render()}
  try{localStorage.setItem('jp_name',name)}catch(e){}
- if(r==='player'){code=$('#cd').value.trim().toLowerCase();if(!/^[a-z0-9]{5}$/.test(code)){msg='Bitte einen gültigen 5-stelligen Code eingeben.';return render()}}
- else code=Array.from({length:5},()=>'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
- const room=window.claude&&await claude.use('room');
- if(!room){msg='Die Lobby ist nur für angemeldete Personen verfügbar, die diese Seite geöffnet haben (nicht über einen öffentlichen Link).';return render()}
- try{R=await room.join('jeopardy-'+code)}catch(e){msg='Beitritt fehlgeschlagen: '+(e&&e.code||'Fehler');return render()}
- role=r;view='game';S=null;msg='';
- if(r==='host'){
+ if(typeof Peer==='undefined'){msg='PeerJS konnte nicht geladen werden (Internetverbindung prüfen).';return render()}
+ msg='Verbinde …';
+ if(r==='host')return hostInit(0);
+ code=$('#cd').value.trim().toLowerCase();
+ if(!/^[a-z0-9]{5}$/.test(code)){msg='Bitte einen gültigen 5-stelligen Code eingeben.';return render()}
+ joinInit();
+}
+function hostInit(t){
+ code=Array.from({length:5},()=>'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
+ const p=P=new Peer('jpd-'+code);
+ p.on('error',e=>{if(P!==p)return;if(e.type==='unavailable-id'&&t<5){P=null;p.destroy();return hostInit(t+1)}msg='Verbindungsfehler: '+e.type;leave()});
+ p.on('open',()=>{
   const cats=board.map(c=>({n:c.n.trim()||'?',c})).filter(x=>x.c.clues.some(q=>q.q.trim()));
-  S={cats:cats.map(x=>x.n.slice(0,30)),used:cats.map(x=>x.c.clues.map(q=>q.q.trim()?0:1)),phase:'board',clue:null,ans:null,queue:[],tried:[],scores:{},cid:0};
+  if(!cats.length){msg='Bitte zuerst mindestens eine Frage anlegen.';return leave()}
   board=cats.map(x=>x.c);
-  R.presence({role:'host'});
-  R.onPeers(onPeers);
-  push();setInterval(()=>R&&role==='host'&&push(true),2500);
- }else{
-  R.presence({role:'player',name});
-  R.on('state',m=>{S=m.data;render()});
+  S={cats:cats.map(x=>x.n.slice(0,30)),used:cats.map(x=>x.c.clues.map(q=>q.q.trim()?0:1)),phase:'board',clue:null,ans:null,queue:[],tried:[],scores:{},cid:0};
+  role='host';view='game';msg='';render();
+  hb=setInterval(()=>push(true),3000);
+ });
+ p.on('connection',c=>{
+  conns.push(c);
+  c.on('open',()=>{if(S)c.send(S)});
+  c.on('data',d=>onMsg(c,d));
+  c.on('close',()=>{conns=conns.filter(x=>x!==c)});
+ });
+}
+function joinInit(){
+ const p=P=new Peer();
+ p.on('error',e=>{if(P!==p)return;msg=e.type==='peer-unavailable'?'Lobby nicht gefunden. Bitte den Code prüfen.':'Verbindungsfehler: '+e.type;leave()});
+ p.on('open',()=>{
+  const c=R=p.connect('jpd-'+code,{reliable:true});
+  c.on('open',()=>{role='player';view='game';S=null;msg='';c.send({t:'hello',name});render()});
+  c.on('data',d=>{S=d;render()});
+  c.on('close',()=>{if(P===p){msg='Verbindung zur Lobby getrennt.';leave()}});
+ });
+}
+function onMsg(c,d){
+ if(!d||!S)return;
+ if(d.t==='hello'&&typeof d.name==='string'&&d.name.trim()){
+  c.pn=d.name.trim().slice(0,20);
+  if(!(c.pn in S.scores))S.scores[c.pn]=0;
+  push();
+ }else if(d.t==='buzz'&&c.pn&&S.phase==='clue'&&S.ans==null&&d.cid===S.cid&&!S.queue.includes(c.pn)){
+  S.queue.push(c.pn);push();
  }
- render();
 }
-function push(quiet){R.emit('state',S).catch(e=>{if(e&&e.code==='not_permitted'){msg='Nur Besitzer/Editoren können eine Lobby hosten.';leave()}});if(!quiet)render()}
-function onPeers(ch){
- let dirty=false;
- R.peers().forEach(p=>{const n=p.presence&&p.presence.name;if(p.presence&&p.presence.role==='player'&&n&&!(n in S.scores)){S.scores[n]=0;dirty=true}});
- ch.updated.concat(ch.joined).forEach(p=>{const b=p.presence&&p.presence.buzz,n=p.presence&&p.presence.name;
-  if(S.phase==='clue'&&S.ans==null&&b&&b.id===S.cid&&n&&!S.queue.includes(n)){S.queue.push(n);dirty=true}});
- if(dirty)push();
-}
+function push(quiet){conns.forEach(c=>{try{c.open&&c.send(S)}catch(e){}});if(!quiet)render()}
 function pick(c,r){
  const q=board[c].clues[r];if(S.used[c][r])return;
  S.phase='clue';S.clue={c,r,v:(r+1)*100,q:q.q.slice(0,600)};S.cid=Date.now();S.queue=[];S.tried=[];S.ans=null;push();
@@ -155,7 +177,7 @@ function judge(ok){
  S.tried.push(who);push();
 }
 function finish(){S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.ans=null;S.queue=[];S.tried=[];push()}
-function leave(){try{R&&R.leave()}catch(e){}R=null;S=null;role=null;view='home';render()}
+function leave(){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;role=null;view='home';try{p&&p.destroy()}catch(e){}render()}
 render();
 </script>
 </body>
