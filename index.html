@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Svoyak</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#eef1fb;--fg:#12182b;--card:#fff;--tile:#2a52c9;--gold:#ffd24a;--mut:#5b6482;--ok:#1f9d55;--bad:#d64545;--line:#d5dbef}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1226;--fg:#eef1ff;--card:#171f3d;--tile:#1d3fa8;--mut:#9aa4cc;--line:#2a3566}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.w{max-width:900px;margin:0 auto;padding:16px}
+h1{margin:0 0 4px;font-size:28px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.mut{color:var(--mut);font-size:14px}
+input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;box-sizing:border-box;margin:6px 0}
+button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:10px;background:var(--tile);color:#fff;cursor:pointer;margin:4px 4px 4px 0}
+button.g{background:var(--gold);color:#1a1a1a}button.ok{background:var(--ok)}button.bad{background:var(--bad)}button:disabled{opacity:.5}
+.code{font-size:40px;font-weight:800;letter-spacing:8px;color:var(--tile)}
+.pl{display:flex;flex-wrap:wrap;gap:8px}.p{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card)}.p.t{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.sc{overflow-x:auto}.bd{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;min-width:520px}
+.bd div{background:var(--tile);color:var(--gold);text-align:center;border-radius:8px;padding:14px 4px;font-weight:800}
+.bd .h{font-size:13px;color:#fff;padding:10px 4px}.bd .u{background:transparent;color:transparent}
+.bd .c{cursor:pointer;font-size:22px}
+.q{text-align:center;padding:24px 12px;background:var(--tile);color:#fff;border-radius:14px;font-size:22px}
+.q small{color:var(--gold);display:block;margin-bottom:8px}
+.buzz{font-size:28px;padding:24px;width:100%;background:var(--gold);color:#1a1a1a}
+.ans{color:var(--gold);margin-top:10px;font-size:18px}
+</style></head><body><div class="w"><h1>Своя игра</h1><div id="app" class="mut"></div></div>
+<script>
+// Fragen: [Kategorie, ["Frage|Antwort", ... 4 Stück (100–400 Punkte)]]
+const Q=[["Geografie",["Hauptstadt von Frankreich?|Paris","Längster Fluss Europas?|Wolga","Auf welchem Kontinent liegt Kenia?|Afrika","Welches Land hat die meisten Zeitzonen?|Frankreich"]],
+["Wissenschaft",["Chemisches Symbol für Gold?|Au","Wie viele Planeten hat unser Sonnensystem?|8","Welches Gas nehmen Pflanzen bei der Photosynthese auf?|Kohlendioxid (CO₂)","Lichtgeschwindigkeit in km/s (ca.)?|300.000"]],
+["Film & TV",["Welcher Zauberlehrling hat eine Blitznarbe?|Harry Potter","Wer führte Regie bei „Titanic“?|James Cameron","Wie heißt der Hai-Klassiker von 1975?|Der weiße Hai","Aus welchem Land stammt „Своя игра“?|Russland"]],
+["Geschichte",["Jahr des Mauerfalls in Berlin?|1989","Erster Mensch auf dem Mond?|Neil Armstrong","Wer erreichte 1492 Amerika?|Christoph Kolumbus","Jahr von Gagarins Weltraumflug?|1961"]],
+["Allgemein",["Wie viele Farben hat der Regenbogen?|7","Größtes Landtier der Erde?|Afrikanischer Elefant","Spieler pro Fußballteam auf dem Feld?|11","Hauptstadt von Kasachstan?|Astana"]]];
+const TOTAL=20,PRE='svoyaigra-',$=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const newS=()=>({phase:'lobby',used:[],cur:null,turn:null,rid:0,tried:[],answerer:null,open:false,last:''});
+let peer,conn,isHost=false,me=null,S=null,P=[],hn='',code='',msg='',conns={},saved='';
+try{saved=localStorage.getItem('sg-name')||''}catch(e){}
+const qa=id=>{const[c,r]=id.split('-').map(Number),[t,a]=Q[c][1][r].split('|');return{c,r,t,a,v:(r+1)*100}};
+
+function home(pre=''){
+ app.innerHTML=`<div class="card"><b>Dein Name</b><input id="nm" maxlength="16" value="${esc(saved)}" placeholder="z. B. Alex">
+ <button class="g" data-a="create">Lobby erstellen (Moderator)</button></div>
+ <div class="card"><b>Lobby beitreten</b><input id="cd" maxlength="4" value="${esc(pre)}" placeholder="Code, z. B. KXMD" style="text-transform:uppercase">
+ <button data-a="join">Beitreten</button><div class="mut">${esc(msg)}</div></div>
+ <div class="mut">Der Moderator sieht die Antworten und bewertet sie. Alle anderen spielen und buzzern.</div>`}
+function name(){const v=($('#nm').value||'').trim();if(!v){msg='Bitte Namen eingeben.';home($('#cd').value);return null}
+ try{localStorage.setItem('sg-name',v)}catch(e){}return v}
+
+/* ---------- Moderator (Host) ---------- */
+function create(){const n=name();if(!n)return;hn=n;
+ const L='ABCDEFGHJKLMNPQRSTUVWXYZ';code='';for(let i=0;i<4;i++)code+=L[Math.random()*L.length|0];
+ app.textContent='Erstelle Lobby …';peer=new Peer(PRE+code);
+ peer.on('open',()=>{isHost=true;S=newS();P=[];location.hash=code;bc()});
+ peer.on('error',e=>{if(e.type==='unavailable-id')create();else{msg='Verbindungsfehler: '+e.type;home()}});
+ peer.on('connection',c=>{
+  c.on('open',()=>{conns[c.peer]=c;c.send({t:'s',S,P,hn})});
+  c.on('data',d=>hdl(c.peer,d));
+  c.on('close',()=>{delete conns[c.peer];P=P.filter(p=>p.id!==c.peer);if(S.turn===c.peer)S.turn=P[0]?.id||null;bc()})})}
+function bc(){const m={t:'s',S,P,hn};Object.values(conns).forEach(c=>c.open&&c.send(m));render()}
+function hdl(id,d){
+ if(d.t==='join'){if(!P.find(p=>p.id===id))P.push({id,name:String(d.n).slice(0,16),score:0});bc()}
+ else if(d.t==='pick'&&S.turn===id)pick(d.q);
+ else if(d.t==='buzz')buzz(id)}
+function pick(q){if(S.phase!=='board'||S.used.includes(q))return;Object.assign(S,{phase:'q',cur:q,used:[...S.used,q],open:true,rid:S.rid+1,tried:[],answerer:null,last:''});bc()}
+function buzz(id){if(S.phase==='q'&&S.open&&!S.tried.includes(id)&&P.find(p=>p.id===id)){S.answerer=id;S.open=false;bc()}}
+function fin(ex){Object.assign(S,{phase:S.used.length>=TOTAL?'over':'board',cur:null,open:false,answerer:null,tried:[]},ex);bc()}
+
+/* ---------- Spieler ---------- */
+function join(){const n=name();if(!n)return;code=($('#cd').value||'').trim().toUpperCase();
+ app.textContent='Verbinde …';peer=new Peer();
+ peer.on('open',id=>{me=id;conn=peer.connect(PRE+code,{reliable:true});
+  conn.on('open',()=>{location.hash=code;conn.send({t:'join',n})});
+  conn.on('data',d=>{if(d.t==='s'){S=d.S;P=d.P;hn=d.hn;render()}});
+  conn.on('close',()=>{app.innerHTML='<div class="card">Verbindung zum Moderator verloren. Seite neu laden.</div>'})});
+ peer.on('error',e=>{msg=e.type==='peer-unavailable'?'Lobby nicht gefunden.':'Verbindungsfehler: '+e.type;home(code)})}
+
+/* ---------- Anzeige ---------- */
+function render(){
+ const turn=P.find(p=>p.id===S.turn);
+ const pl=[...P].sort((a,b)=>b.score-a.score).map(p=>`<span class="p${p.id===S.turn&&S.phase==='board'?' t':''}">${esc(p.name)}${p.id===me?' (du)':''} <b>${p.score}</b></span>`).join('');
+ let h=`<div class="card"><span class="mut">Lobby-Code</span><div class="code">${code}</div><div class="mut">Moderator: ${esc(hn)}${isHost?' (du)':''}</div><div class="pl" style="margin-top:8px">${pl||'<span class="mut">Noch keine Spieler …</span>'}</div></div>`;
+ if(S.phase==='lobby')h+=`<div class="card">Teile den Code <b>${code}</b> oder diesen Link: <b>${esc(location.href.split('#')[0]+'#'+code)}</b><br>${isHost?`<button class="g" data-a="start" ${P.length?'':'disabled'}>Spiel starten</button>`:'<span class="mut">Warte, bis der Moderator startet …</span>'}</div>`;
+ else if(S.phase==='board'){
+  h+=(S.last?`<div class="card ans">${esc(S.last)}</div>`:'')+`<div class="mut">${turn?esc(turn.name)+' wählt eine Frage'+(turn.id===me?' – du bist dran!':''):''}</div><div class="sc"><div class="bd">`+Q.map(c=>`<div class="h">${c[0]}</div>`).join('');
+  for(let r=0;r<4;r++)for(let c=0;c<5;c++){const id=c+'-'+r;h+=S.used.includes(id)?'<div class="u">·</div>':`<div class="c" data-a="pick" data-q="${id}">${(r+1)*100}</div>`}
+  h+='</div></div>'}
+ else if(S.phase==='q'){const x=qa(S.cur),ans=P.find(p=>p.id===S.answerer);
+  h+=`<div class="q"><small>${Q[x.c][0]} · ${x.v}</small>${esc(x.t)}${isHost?`<div class="ans">Antwort: ${esc(x.a)}</div>`:''}</div>`;
+  if(ans)h+=`<div class="card"><b>${esc(ans.name)}</b> antwortet …${isHost?`<br><button class="ok" data-a="ok">✓ Richtig</button><button class="bad" data-a="no">✗ Falsch</button>`:''}</div>`;
+  else if(S.open&&!isHost)h+=S.tried.includes(me)?'<div class="card">Du hattest schon deinen Versuch.</div>':'<button class="buzz" data-a="buzz">BUZZ!</button>';
+  else if(S.open)h+='<div class="card mut">Warte auf einen Buzz …</div>';
+  if(isHost)h+='<button data-a="skip">Überspringen</button>'}
+ else{const w=[...P].sort((a,b)=>b.score-a.score);h+=`<div class="card"><b>Spiel vorbei!</b><br>${w.map((p,i)=>`${i+1}. ${esc(p.name)} – ${p.score}`).join('<br>')}${isHost?'<br><button class="g" data-a="again">Neues Spiel</button>':''}</div>`}
+ app.innerHTML=h}
+
+/* ---------- Aktionen ---------- */
+const A={create,join,
+ start:()=>{S.phase='board';S.turn=P[0].id;bc()},
+ pick:e=>{const q=e.dataset.q;if(isHost)pick(q);else if(S.turn===me)conn.send({t:'pick',q})},
+ buzz:()=>conn.send({t:'buzz'}),
+ ok:()=>{const p=P.find(x=>x.id===S.answerer),x=qa(S.cur);p.score+=x.v;fin({turn:p.id,last:p.name+' hatte recht: '+x.a})},
+ no:()=>{const p=P.find(x=>x.id===S.answerer),x=qa(S.cur);p.score-=x.v;S.tried.push(p.id);S.answerer=null;
+  if(S.tried.length>=P.length)fin({last:'Niemand wusste es: '+x.a});else{S.open=true;bc()}},
+ skip:()=>fin({last:'Antwort: '+qa(S.cur).a}),
+ again:()=>{P.forEach(p=>p.score=0);Object.assign(S,newS(),{phase:'board',turn:P[0].id});bc()}};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b)});
+home(/^#[A-Za-z]{4}$/.test(location.hash)?location.hash.slice(1).toUpperCase():'');
+</script></body></html>
