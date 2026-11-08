@@ -38,10 +38,36 @@ button:disabled{opacity:.45;cursor:default}
 .buzz{font-size:28px;padding:22px 40px;background:var(--gold);color:#222}
 .ed{border-left:4px solid var(--blue);padding-left:10px;margin:10px 0}
 .ed .r{display:grid;grid-template-columns:54px 1fr 1fr;gap:6px;margin-top:6px;align-items:center}
+
+@keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}
+@keyframes zoom{from{transform:scale(.2) rotate(-5deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes flipin{from{transform:rotateX(90deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes shake{20%,60%{transform:translateX(-14px)}40%,80%{transform:translateX(14px)}}
+@keyframes pulse{50%{transform:scale(1.07);box-shadow:0 0 24px var(--gold)}}
+@keyframes tilein{from{transform:translateY(-40px) rotateX(-90deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes up{0%{background:var(--ok);transform:scale(1.3)}100%{transform:none}}
+@keyframes down{0%{background:var(--bad);transform:translateX(-8px)}50%{transform:translateX(8px)}100%{transform:none}}
+@keyframes fall{from{transform:translate(0,-10vh) rotate(0)}to{transform:translate(var(--x),110vh) rotate(var(--r))}}
+@keyframes floatup{0%{transform:translate(-50%,0) scale(.5);opacity:0}20%{opacity:1;transform:translate(-50%,-20px) scale(1.3)}100%{transform:translate(-50%,-130px);opacity:0}}
+@keyframes glow{50%{text-shadow:0 0 24px var(--gold),0 2px 0 var(--blue)}}
+@keyframes blink{50%{opacity:.15}}
+h1{animation:glow 3s infinite}
+.pop{animation:pop .5s backwards}.zoom{animation:zoom .45s cubic-bezier(.2,1.2,.4,1) backwards}.flip{animation:flipin .55s backwards}
+.shake{animation:shake .5s}.pulse,.buzz{animation:pulse 1.2s infinite}.who{display:inline-block;animation:pulse 1s infinite;padding:4px 12px;border-radius:10px}
+.in{animation:tilein .55s backwards;animation-delay:var(--d,0ms)}
+.chip.up{animation:up .8s}.chip.down{animation:down .5s}
+.tile{transition:transform .15s}.tile:not(:disabled):hover{transform:scale(1.07)}.tile:not(:disabled):active{transform:scale(.95)}
+.center{text-align:center}.big .chip{font-size:20px;padding:10px 20px}.dots i{font-style:normal;animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.cf{position:absolute;top:0;width:10px;height:14px;animation:fall 2s ease-in backwards}
+.fl{position:absolute;left:50%;top:42%;font:800 46px Georgia,serif;animation:floatup 1.5s forwards;white-space:nowrap}
+.fl.ok{color:#3ddc84;text-shadow:0 0 14px #fff}.fl.bad{color:#ff5a5a;text-shadow:0 0 14px #000}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <main><h1>JEOPARDY!</h1><div id="app"></div></main>
+<div id="fx"></div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -77,22 +103,33 @@ function renderEdit(){
  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{board.splice(+b.dataset.del,1);save();render()});
  document.querySelectorAll('input[data-f]').forEach(inp=>inp.oninput=()=>{const c=board[+inp.dataset.i];if(inp.dataset.f==='n')c.n=inp.value;else c.clues[+inp.dataset.j][inp.dataset.f]=inp.value;save()});
 }
+let prev={phase:null,cid:null,scores:{},ans:null,fx:null,names:[]};
+const CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'},{urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]};
 function renderGame(){
- const host=role==='host',s=S,cur=s&&s.clue;
- let h=`<div class="row" style="justify-content:space-between"><div>Lobby-Code: <span class="code">${esc(code.toUpperCase())}</span></div><button class="alt" id="lv" style="flex:0 0 auto">Verlassen</button></div>`;
- if(!s){h+=`<p class="mut">${esc(msg||'Verbinde mit der Lobby … (kann bis zu 2 Sekunden dauern)')}</p>`}
- else{
-  h+=`<div class="score">${Object.keys(s.scores).map(n=>`<span class="chip">${esc(n)}: <b>${s.scores[n]}</b></span>`).join('')||'<span class="mut">Noch keine Mitspieler. Teile den Code!</span>'}</div>`;
-  const n=s.cats.length;
-  h+=`<div class="grid" style="grid-template-columns:repeat(${n},1fr)">`+s.cats.map(c=>`<div class="cat">${esc(c)}</div>`).join('');
-  for(let r=0;r<5;r++)for(let c=0;c<n;c++){const used=s.used[c][r];h+=`<button class="tile" data-c="${c}" data-r="${r}" ${(!host||used||s.phase!=='board')?'disabled':''}>${used?'':(r+1)*100}</button>`}
+ const host=role==='host',s=S;
+ let h=`<div class="row"><div>Lobby-Code: <span class="code">${esc(code.toUpperCase())}</span></div><button class="alt" id="lv" style="flex:0 0 auto">Verlassen</button></div>`;
+ let newFx=null,seen=prev.phase!==null;
+ if(!s)h+=`<p class="mut">Verbinde mit der Lobby …</p>`;
+ else if(s.phase==='lobby'){
+  const names=Object.keys(s.scores);
+  h+=`<div class="card center"><h2>Wartezimmer</h2><p class="mut">${host?'Teile Link und Code. Starte, sobald alle da sind.':'Warte, bis der Host das Spiel startet'}<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>
+  <div class="score big" style="justify-content:center">${names.map(n=>`<span class="chip ${prev.names.includes(n)?'':'pop'}">👤 ${esc(n)}</span>`).join('')||'<span class="mut">Noch niemand da …</span>'}</div>
+  <p class="mut">${names.length} Spieler</p>
+  ${host?`<div class="row"><button class="alt" id="cp">Link kopieren</button><button class="gold ${names.length?'pulse':''}" id="go" ${names.length?'':'disabled'}>Spiel starten ▶</button></div>`:''}</div>`;
+ }else{
+  const intro=prev.phase==='lobby',opening=s.cid!==prev.cid,n=s.cats.length;
+  newFx=seen&&s.fx&&(!prev.fx||s.fx.n!==prev.fx.n)?s.fx:null;
+  h+=`<div class="score">${Object.keys(s.scores).map(x=>{const o=prev.scores[x],c=o===undefined?(seen?'pop':''):s.scores[x]>o?'up':s.scores[x]<o?'down':'';return `<span class="chip ${c}">${esc(x)}: <b>${s.scores[x]}</b></span>`}).join('')}</div>`;
+  h+=`<div class="grid" style="grid-template-columns:repeat(${n},1fr)">`+s.cats.map((c,i)=>`<div class="cat ${intro?'in':''}" style="--d:${i*80}ms">${esc(c)}</div>`).join('');
+  for(let r=0;r<5;r++)for(let c=0;c<n;c++){const u=s.used[c][r];h+=`<button class="tile ${intro?'in':''}" style="--d:${300+(c+r*n)*45}ms" data-c="${c}" data-r="${r}" ${(!host||u||s.phase!=='board')?'disabled':''}>${u?'':(r+1)*100}</button>`}
   h+=`</div>`;
   if(host)h+=`<p class="mut">Du bist Moderator: Wähle ein Feld, lies die Frage vor und beurteile die Antworten.</p>`;
+  const cur=s.clue;
   if(s.phase==='clue'&&cur){
    const who=s.queue.find(x=>!s.tried.includes(x));
-   h+=`<div class="ov"><div class="box"><div>${esc(s.cats[cur.c])} für ${cur.v}</div><div class="q">${esc(cur.q)}</div>`;
-   if(s.ans!=null)h+=`<div class="ans">Antwort: ${esc(s.ans)}</div>`;
-   if(who)h+=`<p><b>${esc(who)}</b> ist dran!</p>`;else h+=`<p>${s.ans!=null?'':'Buzzer offen …'}</p>`;
+   h+=`<div class="ov"><div class="box ${opening?'zoom':''} ${newFx&&newFx.k==='bad'?'shake':''}"><div>${esc(s.cats[cur.c])} für ${cur.v}</div><div class="q">${esc(cur.q)}</div>`;
+   if(s.ans!=null)h+=`<div class="ans ${prev.ans==null&&!opening?'flip':''}">Antwort: ${esc(s.ans)}</div>`;
+   h+=who?`<p><span class="who">🔔 ${esc(who)} ist dran!</span></p>`:`<p>${s.ans!=null?'':'Buzzer offen …'}</p>`;
    if(host){
     const ca=((board[cur.c]||{}).clues||[])[cur.r];
     h+=`<div class="hostans">Nur für dich: ${esc(ca?ca.a:'')}</div><div class="row" style="margin-top:12px"><button class="ok" id="jy" ${who?'':'disabled'}>Richtig</button><button class="bad" id="jn2" ${who?'':'disabled'}>Falsch</button><button class="gold" id="rv" ${s.ans!=null?'disabled':''}>Antwort zeigen</button><button class="alt" id="sk" style="color:#fff">Beenden</button></div>`;
@@ -104,14 +141,23 @@ function renderGame(){
   }
  }
  $('#app').innerHTML=h;
- $('#lv').onclick=leave;
- document.querySelectorAll('.tile').forEach(b=>b.onclick=()=>pick(+b.dataset.c,+b.dataset.r));
  const g=id=>$(id);
+ g('#lv').onclick=leave;
+ document.querySelectorAll('.tile').forEach(b=>b.onclick=()=>pick(+b.dataset.c,+b.dataset.r));
+ if(g('#go'))g('#go').onclick=startGame;
+ if(g('#cp'))g('#cp').onclick=()=>{try{navigator.clipboard.writeText(location.href.split('#')[0]);g('#cp').textContent='Kopiert ✓'}catch(e){}};
  if(g('#jy'))g('#jy').onclick=()=>judge(true);
  if(g('#jn2'))g('#jn2').onclick=()=>judge(false);
  if(g('#rv'))g('#rv').onclick=reveal;
  if(g('#sk'))g('#sk').onclick=finish;
  if(g('#bz'))g('#bz').onclick=()=>{g('#bz').disabled=true;R.send({t:'buzz',cid:S.cid})};
+ if(s)prev={phase:s.phase,cid:s.cid,scores:{...s.scores},ans:s.ans,fx:s.fx,names:Object.keys(s.scores)};
+ if(newFx)boom(newFx.k,newFx.t);
+}
+function boom(k,t){
+ const f=$('#fx');
+ if(k==='ok')for(let i=0;i<70;i++){const e=document.createElement('i');e.className='cf';e.style.cssText=`left:${Math.random()*100}%;background:hsl(${Math.random()*360} 90% 55%);--x:${(Math.random()-.5)*240}px;--r:${Math.random()*720}deg;animation-delay:${Math.random()*.4}s;animation-duration:${1.4+Math.random()}s`;f.appendChild(e);setTimeout(()=>e.remove(),3200)}
+ const d=document.createElement('div');d.className='fl '+k;d.textContent=t;f.appendChild(d);setTimeout(()=>d.remove(),1600);
 }
 let P=null,conns=[],hb=null;
 function start(r){
@@ -127,13 +173,15 @@ function start(r){
 }
 function hostInit(t){
  code=Array.from({length:5},()=>'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
- const p=P=new Peer('jpd-'+code);
+ const p=P=new Peer('jpd-'+code,{config:CFG});
  p.on('error',e=>{if(P!==p)return;if(e.type==='unavailable-id'&&t<5){P=null;p.destroy();return hostInit(t+1)}msg='Verbindungsfehler: '+e.type;leave()});
+ p.on('disconnected',()=>{if(P===p)try{p.reconnect()}catch(e){}});
  p.on('open',()=>{
+  if(S)return;
   const cats=board.map(c=>({n:c.n.trim()||'?',c})).filter(x=>x.c.clues.some(q=>q.q.trim()));
   if(!cats.length){msg='Bitte zuerst mindestens eine Frage anlegen.';return leave()}
   board=cats.map(x=>x.c);
-  S={cats:cats.map(x=>x.n.slice(0,30)),used:cats.map(x=>x.c.clues.map(q=>q.q.trim()?0:1)),phase:'board',clue:null,ans:null,queue:[],tried:[],scores:{},cid:0};
+  S={v:0,fx:null,cats:cats.map(x=>x.n.slice(0,30)),used:cats.map(x=>x.c.clues.map(q=>q.q.trim()?0:1)),phase:'lobby',clue:null,ans:null,queue:[],tried:[],scores:{},cid:0};
   role='host';view='game';msg='';render();
   hb=setInterval(()=>push(true),3000);
  });
@@ -141,30 +189,32 @@ function hostInit(t){
   conns.push(c);
   c.on('open',()=>{if(S)c.send(S)});
   c.on('data',d=>onMsg(c,d));
-  c.on('close',()=>{conns=conns.filter(x=>x!==c)});
+  c.on('close',()=>{conns=conns.filter(x=>x!==c);if(S&&S.phase==='lobby'&&c.pn&&!conns.some(x=>x.pn===c.pn)){delete S.scores[c.pn];push()}});
  });
 }
 function joinInit(){
- const p=P=new Peer();
+ const p=P=new Peer({config:CFG});
  p.on('error',e=>{if(P!==p)return;msg=e.type==='peer-unavailable'?'Lobby nicht gefunden. Bitte den Code prüfen.':'Verbindungsfehler: '+e.type;leave()});
  p.on('open',()=>{
-  const c=R=p.connect('jpd-'+code,{reliable:true});
+  const c=R=p.connect('jpd-'+code,{reliable:true,serialization:'json'});
   c.on('open',()=>{role='player';view='game';S=null;msg='';c.send({t:'hello',name});render()});
-  c.on('data',d=>{S=d;render()});
+  c.on('data',d=>{if(d&&d.t==='err'){msg=d.m;return leave()}if(S&&d&&d.v===S.v)return;S=d;render()});
   c.on('close',()=>{if(P===p){msg='Verbindung zur Lobby getrennt.';leave()}});
  });
+ setTimeout(()=>{if(P===p&&view!=='game'){msg='Keine Verbindung zum Host möglich. Code prüfen oder ein anderes Netzwerk (WLAN/Mobilfunk) testen.';leave()}},15000);
 }
 function onMsg(c,d){
  if(!d||!S)return;
  if(d.t==='hello'&&typeof d.name==='string'&&d.name.trim()){
-  c.pn=d.name.trim().slice(0,20);
-  if(!(c.pn in S.scores))S.scores[c.pn]=0;
-  push();
+  const n=d.name.trim().slice(0,20);
+  if(conns.some(x=>x!==c&&x.pn===n)){c.send({t:'err',m:'Dieser Name ist in der Lobby schon vergeben.'});return setTimeout(()=>c.close(),300)}
+  c.pn=n;if(!(n in S.scores))S.scores[n]=0;push();
  }else if(d.t==='buzz'&&c.pn&&S.phase==='clue'&&S.ans==null&&d.cid===S.cid&&!S.queue.includes(c.pn)){
   S.queue.push(c.pn);push();
  }
 }
-function push(quiet){conns.forEach(c=>{try{c.open&&c.send(S)}catch(e){}});if(!quiet)render()}
+function push(quiet){if(!quiet)S.v++;conns.forEach(c=>{try{c.open&&c.send(S)}catch(e){}});if(!quiet)render()}
+function startGame(){if(Object.keys(S.scores).length){S.phase='board';push()}}
 function pick(c,r){
  const q=board[c].clues[r];if(S.used[c][r])return;
  S.phase='clue';S.clue={c,r,v:(r+1)*100,q:q.q.slice(0,600)};S.cid=Date.now();S.queue=[];S.tried=[];S.ans=null;push();
@@ -172,12 +222,13 @@ function pick(c,r){
 function reveal(){const c=S.clue;S.ans=board[c.c].clues[c.r].a.slice(0,300);push()}
 function judge(ok){
  const who=S.queue.find(x=>!S.tried.includes(x));if(!who)return;
- S.scores[who]=(S.scores[who]||0)+(ok?S.clue.v:-S.clue.v);
+ const v=S.clue.v;S.scores[who]=(S.scores[who]||0)+(ok?v:-v);
+ S.fx={k:ok?'ok':'bad',n:Date.now(),t:(ok?'+':'−')+v+' '+who};
  if(ok)return finish();
  S.tried.push(who);push();
 }
 function finish(){S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.ans=null;S.queue=[];S.tried=[];push()}
-function leave(){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;role=null;view='home';try{p&&p.destroy()}catch(e){}render()}
+function leave(){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;role=null;view='home';prev={phase:null,cid:null,scores:{},ans:null,fx:null,names:[]};try{p&&p.destroy()}catch(e){}render()}
 render();
 </script>
 </body>
