@@ -49,6 +49,11 @@ button:disabled{opacity:.45;cursor:default}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .ed{border-left:4px solid var(--blue)}
 .ed .r{display:grid;grid-template-columns:56px 1fr 1fr 40px;gap:6px;margin-top:6px;align-items:center}
+.qimg{max-width:min(90vw,520px);max-height:34vh;border-radius:12px;object-fit:contain;background:#fff;display:block;margin:8px auto}
+.bzround.sm{width:min(60vw,32vh,240px)}.ans.big{font-size:clamp(24px,7vw,44px);padding:20px;max-width:90vw}
+.im{margin:4px 0 8px 62px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.im button{padding:6px 12px}
+.lb{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:6px 12px;cursor:pointer;font-weight:600}
+.th{height:44px;border-radius:6px;border:1px solid var(--line)}
 @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}
 @keyframes zoom{from{transform:scale(.2) rotate(-5deg);opacity:0}to{transform:none;opacity:1}}
 @keyframes shake{20%,60%{transform:translateX(-14px)}40%,80%{transform:translateX(14px)}}
@@ -85,10 +90,12 @@ const S1=[['Geografie',[['Hauptstadt von Australien?','Canberra'],['Längster Fl
 const blank=()=>Array.from({length:5},(_,i)=>({n:'Kategorie '+(i+1),clues:Array.from({length:5},()=>({q:'',a:''}))}));
 const sample=()=>[{cats:S1.map(x=>({n:x[0],clues:x[1].map(y=>({q:y[0],a:y[1]}))}))},{cats:blank()},{cats:blank()}];
 let rounds=(()=>{try{const j=JSON.parse(localStorage.getItem('jp_game2'));if(Array.isArray(j)&&j.length&&j[0].cats)return j}catch(e){}return sample()})();
-const save=()=>{try{localStorage.setItem('jp_game2',JSON.stringify(rounds))}catch(e){}};
-let view='home',role=null,name='',code='',R=null,S=null,G=[],msg='',er=0;
+const save=()=>{try{localStorage.setItem('jp_game2',JSON.stringify(rounds));saveOk=true}catch(e){saveOk=false}};
+const okq=q=>q.q.trim()||q.img;
+function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,700/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.7))};im.onerror=()=>cb(null);im.src=fr.result};fr.onerror=()=>cb(null);fr.readAsDataURL(f)}
+let view='home',role=null,name='',code='',R=null,S=null,G=[],msg='',er=0,IMG=null,saveOk=true;
 try{name=localStorage.getItem('jp_name')||''}catch(e){}
-let prev={phase:null,cid:null,scores:{},fx:null,names:[]};
+let prev={phase:null,cid:null,scores:{},fx:null,ans:null,names:[]};
 
 function render(){
  const a=$('#app');
@@ -118,10 +125,10 @@ function getName(){
 function renderEdit(){
  const rd=rounds[er],m=er+1,emp=()=>({q:'',a:''});
  let h=`<div class="row"><button class="alt" id="bk">← Fertig</button><button class="alt" id="rs">Beispiel laden</button></div>
- <p class="mut">Punkte = Reihe × 100 × Rundennummer. Leere Fragen werden übersprungen, leere Runden ausgelassen. Alles wird in diesem Browser gespeichert.</p>
+ <p class="mut">Punkte = Reihe × 100 × Rundennummer. Leere Fragen werden übersprungen, leere Runden ausgelassen. Alles wird in diesem Browser gespeichert. Hochgeladene Bilder werden automatisch verkleinert.</p>${saveOk?'':'<p class="err">Speicher voll: Bilder bleiben evtl. nicht dauerhaft erhalten. Nutze weniger Bilder oder Bild-URLs.</p>'}
  <div class="tabs">${rounds.map((_,i)=>`<button class="${i===er?'':'alt'}" data-rd="${i}">Runde ${i+1}</button>`).join('')}<button class="alt" id="ar" ${rounds.length>=6?'disabled':''}>+ Runde</button><button class="alt" id="dr" ${rounds.length<=1?'disabled':''}>Runde löschen</button></div>`;
  h+=rd.cats.map((c,i)=>`<div class="card ed"><div class="row"><input data-i="${i}" data-f="n" value="${esc(c.n)}" placeholder="Kategorie ${i+1}"><button class="bad" data-dc="${i}" style="flex:0 0 auto">Kategorie löschen</button></div>`+
-  c.clues.map((q,j)=>`<div class="r"><b>${(j+1)*100*m}</b><input data-i="${i}" data-j="${j}" data-f="q" value="${esc(q.q)}" placeholder="Frage"><input data-i="${i}" data-j="${j}" data-f="a" value="${esc(q.a)}" placeholder="Antwort"><button class="alt" data-dq="${i}.${j}" style="padding:8px">✕</button></div>`).join('')+
+  c.clues.map((q,j)=>`<div class="r"><b>${(j+1)*100*m}</b><input data-i="${i}" data-j="${j}" data-f="q" value="${esc(q.q)}" placeholder="Frage"><input data-i="${i}" data-j="${j}" data-f="a" value="${esc(q.a)}" placeholder="Antwort"><button class="alt" data-dq="${i}.${j}" style="padding:8px">✕</button></div><div class="im">${q.img?`<img class="th" src="${esc(q.img)}" alt=""> <button class="alt" data-ri="${i}.${j}">Bild entfernen</button>`:`<label class="lb">📷 Bild<input type="file" accept="image/*" hidden data-up="${i}.${j}"></label> <button class="alt" data-url="${i}.${j}">🔗 Bild-URL</button>`}</div>`).join('')+
   `<button class="alt" data-aq="${i}" style="margin-top:8px" ${c.clues.length>=8?'disabled':''}>+ Frage</button></div>`).join('');
  h+=`<button class="alt" id="ac" ${rd.cats.length>=8?'disabled':''}>+ Kategorie</button>`;
  $('#app').innerHTML=h;
@@ -135,6 +142,68 @@ function renderEdit(){
  qa('[data-dc]').forEach(b=>b.onclick=()=>{rd.cats.splice(+b.dataset.dc,1);go()});
  qa('[data-aq]').forEach(b=>b.onclick=()=>{rd.cats[+b.dataset.aq].clues.push(emp());go()});
  qa('[data-dq]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.dq.split('.');rd.cats[+i].clues.splice(+j,1);go()});
+ qa('[data-ri]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.ri.split('.');delete rd.cats[+i].clues[+j].img;go()});
+ qa('[data-url]').forEach(b=>b.onclick=()=>{const u=prompt('Bild-URL (https://…):');if(u&&/^https?:\/\//.test(u.trim())){const[i,j]=b.dataset.url.split('.');rd.cats[+i].clues[+j].img=u.trim();go()}});
+ qa('[data-up]').forEach(inp=>inp.onchange=()=>{const f=inp.files[0];if(!f)return;const[i,j]=inp.dataset.up.split('.');shrink(f,d=>{if(d){rd.cats[+i].clues[+j].img=d;go()}})});
+ qa('input[data-f]').forEach(inp=>inp.oninput=()=>{const c=rd.cats[+inp.dataset.i];if(inp.dataset.f==='n')c.n=inp.value;else c.clues[+inp.dataset.j][inp.dataset.f]=inp.value;save()});
+}
+function renderGame(){
+ const host=role==='host',s=S;
+ let h=`<div class="row"><div>Lobby-Code: <span class="code">${esc(code.toUpperCase())}</span></div><button class="alt" id="lv" style="flex:0 0 auto">Verlassen</button></div>`;
+ let newFx=null;const seen=prev.phase!==null;
+ if(!s)h+=`<p class="mut">Verbinde mit der Lobby …</p>`;
+ else{
+  newFx=seen&&s.fx&&(!prev.fx||s.fx.n!==prev.fx.n)?s.fx:null;
+  const names=Object.keys(s.scores);
+  if(s.phase==='lobby'){
+   h+=`<div class="card center"><h2>Wartezimmer</h2><p class="mut">${host?'Teile Link und Code. Starte, sobald alle da sind.':'Warte, bis der Host das Spiel startet'}<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>
+   <div class="score big">${names.map(n=>`<span class="chip ${prev.names.includes(n)?'':'pop'}">👤 ${esc(n)}</span>`).join('')||'<span class="mut">Noch niemand da …</span>'}</div>
+   <p class="mut">${names.length} Spieler · ${s.rounds} Runden</p>
+   ${host?`<div class="row"><button class="alt" id="cp">Link kopieren</button><button class="gold ${names.length?'pulse':''}" id="go" ${names.length?'':'disabled'}>Spiel starten ▶</button></div>`:''}</div>`;
+  }else if(s.phase==='roundend'||s.phase==='end'){
+   const end=s.phase==='end',rank=names.slice().sort((a,b)=>s.scores[b]-s.scores[a]);
+   h+=`<div class="card center"><h2>${end?'🏆 Endstand':'Runde '+(s.round+1)+' beendet'}</h2><div class="rank">${rank.map((n,i)=>`<div class="rk pop" style="animation-delay:${i*150}ms"><span>${['🥇','🥈','🥉'][i]||(i+1)+'.'}</span><span>${esc(n)}</span><b>${s.scores[n]}</b></div>`).join('')}</div>
+   ${host&&!end?`<button class="gold pulse" id="nx">${s.round+1<s.rounds?'Nächste Runde ▶':'Spiel beenden 🏆'}</button>`:''}${!host&&!end?'<p class="mut">Warte auf den Host …</p>':''}</div>`;
+  }else{
+   const mult=s.round+1,n=s.cats.length,open=s.used.reduce((t,a)=>t+a.filter(x=>!x).length,0);
+   const intro=prev.phase==='lobby'||prev.phase==='roundend',opening=s.cid!==prev.cid;
+   h+=`<div class="score">${names.map(x=>{const o=prev.scores[x],c=o===undefined?(seen?'pop':''):s.scores[x]>o?'up':s.scores[x]<o?'down':'';return `<span class="chip ${c}">${esc(x)}: <b>${s.scores[x]}</b></span>`}).join('')}</div>
+   <p class="mut center">Runde ${s.round+1} von ${s.rounds} · ${open} Fragen offen · ✓ = schon gespielt</p>
+   <div class="grid" style="grid-template-columns:repeat(${n},1fr)">`+s.cats.map((c,i)=>`<div class="cat ${intro?'in':''}" style="--d:${i*80}ms">${esc(c)}</div>`).join('');
+   for(let r=0;r<s.rows;r++)for(let c=0;c<n;c++){const u=s.used[c][r];h+=`<button class="tile ${u?'used':''} ${intro?'in':''}" style="--d:${300+(c+r*n)*40}ms" data-c="${c}" data-r="${r}" ${(!host||u||s.phase!=='board')?'disabled':''}>${u?'✓':(r+1)*100*mult}</button>`}
+   h+=`</div>`;
+   if(host)h+=`<div class="row"><p class="mut" style="flex:3 1 200px">Du bist Moderator: Wähle ein Feld, lies die Frage vor und beurteile die Antworten.</p><button class="alt" id="er">Runde beenden</button></div>`;
+   const cur=s.clue;
+   if(s.phase==='clue'&&cur){
+    const who=s.queue.find(x=>!s.tried.includes(x)),shake=newFx&&newFx.k==='bad'?'shake':'',rev=s.ans!=null;
+    const cl=host?G[s.round].cats[cur.c].clues[cur.r]:null;
+    const src=host?cl.img:(IMG&&IMG.cid===s.cid&&IMG.src);
+    const im=src?`<img class="qimg" src="${esc(src)}" alt="">`:(s.hasImg&&!host?'<p class="mut" style="color:#fff">Bild lädt …</p>':'');
+    if(host){
+     h+=`<div class="ov"><div class="box ${opening?'zoom':''} ${shake}"><div>${esc(s.cats[cur.c])} für ${cur.v}</div>${im}<div class="q">${esc(cl.q)}</div><div class="ans ${rev&&prev.ans==null?'flip':''}">Antwort (${rev?'für alle sichtbar':'nur für dich'}): ${esc(cl.a)}</div>
+     <p>${who?`<span class="who">🔔 ${esc(who)} ist dran!</span>`:'Buzzer offen …'}</p>
+     <div class="row"><button class="ok" id="jy" ${who?'':'disabled'}>Richtig</button><button class="bad" id="jn2" ${who?'':'disabled'}>Falsch</button><button class="gold" id="rv" ${rev?'disabled':''}>Antwort zeigen</button><button class="alt" id="sk" style="color:#fff">Frage beenden</button></div></div></div>`;
+    }else{
+     const mine=s.queue.includes(name)||s.tried.includes(name);
+     h+=`<div class="ov"><div class="bzwrap ${opening?'zoom':''} ${shake}"><div class="bzlabel">${rev?'ANTWORT':'BUZZERN'}</div>${im}${rev?`<div class="ans big ${prev.ans==null?'flip':''}">${esc(s.ans)}</div>`:`<button class="bzround ${who===name?'me':mine?'off':''} ${src?'sm':''}" id="bz" ${mine?'disabled':''} aria-label="Buzzern"></button>`}</div></div>`;
+    }
+   }
+  }
+ }
+ $('#app').innerHTML=h;
+ const go=()=>{save();render()};
+ $('#bk').onclick=()=>{view='cname';render()};
+ $('#rs').onclick=()=>{rounds=sample();er=0;go()};
+ qa('[data-rd]').forEach(b=>b.onclick=()=>{er=+b.dataset.rd;render()});
+ $('#ar').onclick=()=>{rounds.push({cats:blank()});er=rounds.length-1;go()};
+ $('#dr').onclick=()=>{rounds.splice(er,1);er=Math.max(0,er-1);go()};
+ $('#ac').onclick=()=>{rd.cats.push({n:'Kategorie '+(rd.cats.length+1),clues:[emp(),emp(),emp(),emp(),emp()]});go()};
+ qa('[data-dc]').forEach(b=>b.onclick=()=>{rd.cats.splice(+b.dataset.dc,1);go()});
+ qa('[data-aq]').forEach(b=>b.onclick=()=>{rd.cats[+b.dataset.aq].clues.push(emp());go()});
+ qa('[data-dq]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.dq.split('.');rd.cats[+i].clues.splice(+j,1);go()});
+ qa('[data-ri]').forEach(b=>b.onclick=()=>{const[i,j]=b.dataset.ri.split('.');delete rd.cats[+i].clues[+j].img;go()});
+ qa('[data-url]').forEach(b=>b.onclick=()=>{const u=prompt('Bild-URL (https://…):');if(u&&/^https?:\/\//.test(u.trim())){const[i,j]=b.dataset.url.split('.');rd.cats[+i].clues[+j].img=u.trim();go()}});
+ qa('[data-up]').forEach(inp=>inp.onchange=()=>{const f=inp.files[0];if(!f)return;const[i,j]=inp.dataset.up.split('.');shrink(f,d=>{if(d){rd.cats[+i].clues[+j].img=d;go()}})});
  qa('input[data-f]').forEach(inp=>inp.oninput=()=>{const c=rd.cats[+inp.dataset.i];if(inp.dataset.f==='n')c.n=inp.value;else c.clues[+inp.dataset.j][inp.dataset.f]=inp.value;save()});
 }
 function renderGame(){
@@ -189,8 +258,9 @@ function renderGame(){
  if(g('#jy'))g('#jy').onclick=()=>judge(true);
  if(g('#jn2'))g('#jn2').onclick=()=>judge(false);
  if(g('#sk'))g('#sk').onclick=finish;
+ if(g('#rv'))g('#rv').onclick=reveal;
  if(g('#bz'))g('#bz').onpointerdown=()=>{const b=g('#bz');if(b.disabled)return;b.disabled=true;b.classList.add('off');R.send({t:'buzz',cid:S.cid})};
- if(s)prev={phase:s.phase,cid:s.cid,scores:{...s.scores},fx:s.fx,names:Object.keys(s.scores)};
+ if(s)prev={phase:s.phase,cid:s.cid,scores:{...s.scores},fx:s.fx,ans:s.ans,names:Object.keys(s.scores)};
  if(newFx)boom(newFx.k,newFx.t);
 }
 function boom(k,t){
@@ -203,11 +273,11 @@ let P=null,conns=[],hb=null;
 function loadRound(i){
  S.round=i;const cs=G[i].cats;S.rows=Math.max(...cs.map(c=>c.clues.length));
  S.cats=cs.map(c=>(c.n.trim()||'?').slice(0,30));
- S.used=cs.map(c=>Array.from({length:S.rows},(_,r)=>c.clues[r]&&c.clues[r].q.trim()?0:1));
+ S.used=cs.map(c=>Array.from({length:S.rows},(_,r)=>c.clues[r]&&okq(c.clues[r])?0:1));
 }
 function hostInit(t){
  if(t===0){
-  G=rounds.map(r=>({cats:r.cats.filter(c=>c.clues.some(q=>q.q.trim()))})).filter(r=>r.cats.length);
+  G=rounds.map(r=>({cats:r.cats.filter(c=>c.clues.some(okq))})).filter(r=>r.cats.length);
   if(!G.length){msg='Bitte zuerst mindestens eine Frage anlegen (Spiel bearbeiten).';return render()}
   msg='Verbinde …';render();
  }
@@ -223,7 +293,7 @@ function hostInit(t){
  });
  p.on('connection',c=>{
   conns.push(c);
-  c.on('open',()=>{if(S)c.send(S)});
+  c.on('open',()=>{if(S){c.send(S);sendImg(c)}});
   c.on('data',d=>onMsg(c,d));
   c.on('close',()=>{conns=conns.filter(x=>x!==c);if(S&&S.phase==='lobby'&&c.pn&&!conns.some(x=>x.pn===c.pn)){delete S.scores[c.pn];push()}});
  });
@@ -235,7 +305,8 @@ function joinInit(){
  p.on('open',()=>{
   const c=R=p.connect('jpd-'+code,{reliable:true,serialization:'json'});
   c.on('open',()=>{role='player';view='game';S=null;msg='';c.send({t:'hello',name});render()});
-  c.on('data',d=>{if(d&&d.t==='err'){msg=d.m;return leave('jname')}if(S&&d&&d.v===S.v)return;S=d;render()});
+  c.on('data',d=>{if(d&&d.t==='err'){msg=d.m;return leave('jname')}if(d&&d.t==='img'){if(!IMG||IMG.cid!==d.cid)IMG={cid:d.cid,n:d.n,p:[],c:0};IMG.p[d.i]=d.d;if(++IMG.c===IMG.n){IMG.src=IMG.p.join('');render()}return}
+   if(S&&d&&d.v===S.v)return;S=d;render()});
   c.on('close',()=>{if(P===p){msg='Verbindung zur Lobby getrennt.';leave()}});
  });
  setTimeout(()=>{if(P===p&&view!=='game'){msg='Keine Verbindung zum Host möglich. Code prüfen oder ein anderes Netzwerk (WLAN/Mobilfunk) testen.';leave('jname')}},15000);
@@ -246,7 +317,7 @@ function onMsg(c,d){
   const n=d.name.trim().slice(0,20);
   if(conns.some(x=>x!==c&&x.pn===n)){c.send({t:'err',m:'Dieser Name ist in der Lobby schon vergeben.'});return setTimeout(()=>c.close(),300)}
   c.pn=n;if(!(n in S.scores))S.scores[n]=0;push();
- }else if(d.t==='buzz'&&c.pn&&S.phase==='clue'&&d.cid===S.cid&&!S.queue.includes(c.pn)){
+ }else if(d.t==='buzz'&&c.pn&&S.phase==='clue'&&S.ans==null&&d.cid===S.cid&&!S.queue.includes(c.pn)){
   S.queue.push(c.pn);push();
  }
 }
@@ -254,7 +325,7 @@ function push(quiet){if(!quiet)S.v++;conns.forEach(c=>{try{c.open&&c.send(S)}cat
 function startGame(){if(Object.keys(S.scores).length){S.phase='board';push()}}
 function pick(c,r){
  if(S.used[c][r]||S.phase!=='board')return;
- S.phase='clue';S.clue={c,r,v:(r+1)*100*(S.round+1)};S.cid=Date.now();S.queue=[];S.tried=[];push();
+ const cl=G[S.round].cats[c].clues[r];S.phase='clue';S.clue={c,r,v:(r+1)*100*(S.round+1)};S.cid=Date.now();S.queue=[];S.tried=[];S.ans=null;S.hasImg=!!cl.img;push();conns.forEach(sendImg);
 }
 function judge(ok){
  const who=S.queue.find(x=>!S.tried.includes(x));if(!who)return;
@@ -264,17 +335,24 @@ function judge(ok){
  S.tried.push(who);push();
 }
 function finish(){
- S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.queue=[];S.tried=[];
+ S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.queue=[];S.tried=[];S.ans=null;S.hasImg=false;
  if(S.used.every(a=>a.every(x=>x)))S.phase='roundend';
  push();
 }
-function endRound(){S.phase='roundend';S.clue=null;push()}
+function endRound(){S.phase='roundend';S.clue=null;S.ans=null;S.hasImg=false;push()}
+function reveal(){const c=S.clue,cl=G[S.round].cats[c.c].clues[c.r];S.ans=(cl.a||'').slice(0,300)||'–';push()}
+function sendImg(c){
+ if(!S||S.phase!=='clue'||!S.clue||!c.open)return;
+ const src=G[S.round].cats[S.clue.c].clues[S.clue.r].img;if(!src)return;
+ const n=Math.ceil(src.length/12000);
+ for(let i=0;i<n;i++)c.send({t:'img',cid:S.cid,i,n,d:src.slice(i*12000,(i+1)*12000)});
+}
 function nextRound(){
  if(S.round+1<G.length){loadRound(S.round+1);S.phase='board'}
  else{S.phase='end';const t=Object.keys(S.scores).sort((a,b)=>S.scores[b]-S.scores[a])[0];S.fx={k:'ok',n:Date.now(),t:'🏆 '+t}}
  push();
 }
-function leave(v){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;G=[];role=null;view=v||'home';prev={phase:null,cid:null,scores:{},fx:null,names:[]};try{p&&p.destroy()}catch(e){}render()}
+function leave(v){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;G=[];IMG=null;role=null;view=v||'home';prev={phase:null,cid:null,scores:{},fx:null,ans:null,names:[]};try{p&&p.destroy()}catch(e){}render()}
 render();
 </script>
 </body>
