@@ -31,7 +31,7 @@ button:disabled{opacity:.45;cursor:default}
 .tile:disabled{opacity:1;cursor:default}
 .tile:not(:disabled):hover{transform:scale(1.06);box-shadow:0 4px 14px rgba(36,56,208,.45)}
 .tile.used{background:transparent;border:1px dashed var(--line);color:transparent}
-.score{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.score{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
 .chip b{color:var(--blue)}@media (prefers-color-scheme:dark){.chip b{color:var(--gold)}}
 .code{font:800 26px ui-monospace,monospace;letter-spacing:.2em;color:var(--gold);background:var(--blue);padding:4px 14px;border-radius:10px}
@@ -45,8 +45,10 @@ button:disabled{opacity:.45;cursor:default}
 .buzz:disabled{filter:grayscale(1);opacity:.3;cursor:not-allowed}
 .ed{border-left:4px solid var(--blue);padding-left:10px;margin:10px 0}
 .ed .r{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}.ed .r>b{width:54px}.ed .r>input{flex:1 1 140px;width:auto}
-.imc{display:flex;gap:6px;align-items:center}.th{height:40px;border-radius:6px}.imb{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:8px 12px}.imc button{padding:8px 10px}.tabs>*{flex:1 1 90px}
-.qimg{display:block;max-width:100%;max-height:40vh;margin:8px auto;border-radius:10px;background:#fff}.qimg.in{animation:zoom .5s cubic-bezier(.2,1.3,.4,1)}.rb{margin:10px 0 0}.rb.in{animation:zoom .5s}
+.imc{display:flex;gap:6px;align-items:center}.th{height:40px;border-radius:6px}.imb{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:8px 12px}.imc button{padding:8px 10px}.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}.eq>*{width:100%;min-height:48px}.eq.tabs{grid-template-columns:repeat(3,1fr)}
+.c{max-width:440px;margin:0 auto;min-height:60vh;display:flex;flex-direction:column;justify-content:center;text-align:center}.c .card{width:100%}.c input{text-align:center}
+.lob{text-align:center;max-width:560px;margin-left:auto;margin-right:auto}
+.qimg{display:block;max-width:100%;max-height:40vh;margin:8px auto;border-radius:10px;background:#fff}.qimg.in{animation:zoom .5s cubic-bezier(.2,1.3,.4,1)}.rb{margin:10px 0 0;text-align:center}.rb.in{animation:zoom .5s}
 .win{text-align:center;font:700 22px Georgia,serif;animation:pop .6s cubic-bezier(.2,1.4,.4,1)}
 .dots::after{content:'';animation:dots 1.4s steps(1) infinite}
 /* Animationen */
@@ -88,17 +90,18 @@ const sample3=()=>[sample(),
 let board=(()=>{try{const j=JSON.parse(localStorage.getItem('jp_board3'));if(Array.isArray(j)&&j.length===3)return j}catch(e){}try{const o=JSON.parse(localStorage.getItem('jp_board'));if(Array.isArray(o)&&o.length)return [o,[],[]]}catch(e){}return sample3()})();
 const save=()=>{try{localStorage.setItem('jp_board3',JSON.stringify(board));return true}catch(e){return false}};
 let view='home',role=null,name='',code='',R=null,S=null,msg='',busy=false,prev=null,lastJ='';
-let er=0,G=[],curImg=null,imgC=null,imgAnim=null;const has=q=>!!(q.q.trim()||q.img);
+let er=0,G=[],curImg=null,imgC=null,imgAnim=null,curAImg=null,aimgC=null,aimgAnim=null;const has=q=>!!(q.q.trim()||q.img);
 try{name=localStorage.getItem('jp_name')||''}catch(e){}
 const go=v=>{view=v;msg='';render()};
 
 function render(){
- const a=$('#app'),err=`<p class="${busy?'mut':'err'}">${esc(msg)}</p>`;
+ const a=$('#app');a.className=['home','host-name','join-code','join-name'].includes(view)?'c':'';
+ const err=`<p class="${busy?'mut':'err'}">${esc(msg)}</p>`;
  const nameField=`<label for="nm">Dein Name</label><input id="nm" maxlength="20" value="${esc(name)}" placeholder="z. B. Alex" autocomplete="nickname">`;
- const nav=(back,label)=>`<div class="row" style="margin-top:12px"><button class="alt" id="bk">← Zurück</button><button id="go" ${busy?'disabled':''}>${label}</button></div>`;
+ const nav=(back,label)=>`<div class="row eq" style="margin-top:12px"><button class="alt" id="bk">← Zurück</button><button id="go" ${busy?'disabled':''}>${label}</button></div>`;
  if(view==='home'){
   a.innerHTML=`<div class="card step"><p class="mut">Spiele Jeopardy mit Freunden: Einer erstellt die Lobby (Moderator), die anderen treten mit dem Code bei und buzzern.</p>
-  <div class="row"><button id="mk">Lobby erstellen</button><button id="jn">Lobby beitreten</button></div>
+  <div class="row eq"><button id="mk">Lobby erstellen</button><button id="jn">Lobby beitreten</button></div>
   </div>${err}`;
   $('#mk').onclick=()=>go('host-name');$('#jn').onclick=()=>go('join-code');
  }else if(view==='host-name'){
@@ -116,13 +119,14 @@ function render(){
  const inp=$('input');if(inp){inp.onkeydown=e=>{if(e.key==='Enter')$('#go').click()};if(!busy)inp.focus()}
 }
 function renderEdit(){
- const rd=board[er],ij=s=>s.split('.').map(Number);
- $('#app').innerHTML=`<div class="row"><button class="alt" id="bk">← Zurück</button><button class="gold" id="mkb" ${busy?'disabled':''}>Lobby erstellen</button></div>
- <div class="row tabs" style="margin-top:10px">${[0,1,2].map(i=>`<button class="${i===er?'':'alt'}" data-tab="${i}">Runde ${i+1}</button>`).join('')}</div>
- <div class="row" style="margin-top:10px"><button class="alt" id="ac" ${rd.length>=6?'disabled':''}>+ Kategorie</button><button class="alt" id="rs">Beispiel laden</button></div>
- <p class="mut">Hallo ${esc(name)}! Pro Kategorie bis zu 5 Fragen, in Runde ${er+1} zählen sie ×${er+1}. Jede Frage kann ein Bild haben (🖼). Leere Felder und leere Runden werden übersprungen. Alles wird in diesem Browser gespeichert.</p><p class="${busy?'mut':'err'}">${esc(msg)}</p>`+
+ const rd=board[er],ij=s=>{const a=s.split('.');return [+a[0],+a[1],a[2]]},
+ im=(i,j,k,q,t)=>`<span class="imc">${q[k]?`<img class="th" src="${esc(q[k])}" alt=""><button class="bad" data-rm="${i}.${j}.${k}">✕</button>`:''}<label class="imb" title="Bild ${t}">🖼 ${t}<input type="file" accept="image/*" hidden data-img="${i}.${j}.${k}"></label></span>`;
+ $('#app').innerHTML=`<div class="row eq"><button class="alt" id="bk">← Zurück</button><button class="gold" id="mkb" ${busy?'disabled':''}>Lobby erstellen</button></div>
+ <div class="row eq tabs" style="margin-top:10px">${[0,1,2].map(i=>`<button class="${i===er?'':'alt'}" data-tab="${i}">Runde ${i+1}</button>`).join('')}</div>
+ <div class="row eq" style="margin-top:10px"><button class="alt" id="ac" ${rd.length>=6?'disabled':''}>+ Kategorie</button><button class="alt" id="rs">Beispiel laden</button></div>
+ <p class="mut">Hallo ${esc(name)}! Pro Kategorie bis zu 5 Fragen, in Runde ${er+1} zählen sie ×${er+1}. Zu Frage und Antwort kannst du je ein Bild hinzufügen (🖼); das Antwortbild erscheint erst bei „Antwort zeigen“. Leere Felder und leere Runden werden übersprungen. Alles wird in diesem Browser gespeichert.</p><p class="${busy?'mut':'err'}">${esc(msg)}</p>`+
  rd.map((c,i)=>`<div class="card ed"><div class="row"><input data-i="${i}" data-f="n" value="${esc(c.n)}" placeholder="Kategorie ${i+1}"><button class="bad" data-del="${i}" style="flex:0 0 auto">Löschen</button></div>`+
- c.clues.map((q,j)=>`<div class="r"><b>${(j+1)*100*(er+1)}</b><input data-i="${i}" data-j="${j}" data-f="q" value="${esc(q.q)}" placeholder="Frage"><input data-i="${i}" data-j="${j}" data-f="a" value="${esc(q.a)}" placeholder="Antwort"><span class="imc">${q.img?`<img class="th" src="${esc(q.img)}" alt=""><button class="bad" data-rm="${i}.${j}">✕</button>`:''}<label class="imb" title="Bild wählen">🖼<input type="file" accept="image/*" hidden data-img="${i}.${j}"></label></span></div>`).join('')+`</div>`).join('');
+ c.clues.map((q,j)=>`<div class="r"><b>${(j+1)*100*(er+1)}</b><input data-i="${i}" data-j="${j}" data-f="q" value="${esc(q.q)}" placeholder="Frage"><input data-i="${i}" data-j="${j}" data-f="a" value="${esc(q.a)}" placeholder="Antwort"></div><div class="r" style="padding-left:60px">${im(i,j,'img',q,'Frage')}${im(i,j,'aimg',q,'Antwort')}</div>`).join('')+`</div>`).join('');
  $('#bk').onclick=()=>go('host-name');
  $('#mkb').onclick=()=>start('host');
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{er=+b.dataset.tab;msg='';render()});
@@ -130,9 +134,9 @@ function renderEdit(){
  $('#rs').onclick=()=>{board=sample3();save();render()};
  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{rd.splice(+b.dataset.del,1);save();render()});
  document.querySelectorAll('input[data-f]').forEach(inp=>inp.oninput=()=>{const c=rd[+inp.dataset.i];if(inp.dataset.f==='n')c.n=inp.value;else c.clues[+inp.dataset.j][inp.dataset.f]=inp.value;save()});
- document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const [i,j]=ij(b.dataset.rm);delete rd[i].clues[j].img;save();render()});
- document.querySelectorAll('[data-img]').forEach(inp=>inp.onchange=()=>{const f=inp.files[0];if(!f)return;const [i,j]=ij(inp.dataset.img);
-  shrink(f,d=>{const q=rd[i].clues[j],o=q.img;if(!d)msg='Das Bild konnte nicht gelesen werden.';else{q.img=d;if(save())msg='';else{q.img=o;msg='Speicher voll: Entferne andere Bilder oder nimm ein kleineres.'}}render()})});
+ document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const [i,j,k]=ij(b.dataset.rm);delete rd[i].clues[j][k];save();render()});
+ document.querySelectorAll('[data-img]').forEach(inp=>inp.onchange=()=>{const f=inp.files[0];if(!f)return;const [i,j,k]=ij(inp.dataset.img);
+  shrink(f,d=>{const q=rd[i].clues[j],o=q[k];if(!d)msg='Das Bild konnte nicht gelesen werden.';else{q[k]=d;if(save())msg='';else{q[k]=o;msg='Speicher voll: Entferne andere Bilder oder nimm ein kleineres.'}}render()})});
 }
 function shrink(f,cb){
  const fr=new FileReader();fr.onerror=()=>cb(null);
@@ -163,7 +167,7 @@ function renderGame(){
 }
 function lobbyHtml(s,host,pv){
  const names=Object.keys(s.scores);
- return `<div class="card step" style="margin-top:14px"><h2>Wartezimmer</h2>
+ return `<div class="card step lob" style="margin-top:14px"><h2>Wartezimmer</h2>
  <p class="mut">Moderator: <b>${esc(s.host)}</b>. Teile den Code, damit die anderen beitreten können.</p>
  <div class="score">${names.map(n=>`<span class="chip${pv&&pv.phase==='lobby'&&n in pv.scores?'':' pop'}">${esc(n)}${n===name&&!host?' (du)':''}</span>`).join('')||'<span class="mut">Noch niemand da …</span>'}</div>
  <p class="mut">${s.rn===1?'1 Runde':s.rn+' Runden'}. Kategorien in Runde 1: ${s.cats.map(esc).join(', ')}</p>
@@ -196,11 +200,16 @@ function boardHtml(s,host,pv){
    if(im){const an=imgAnim!==s.cid;imgAnim=s.cid;h+=`<img class="qimg${an?' in':''}" src="${esc(im)}" alt="">`}
    else h+=`<p style="color:#dfe3ff">Bild wird geladen<span class="dots"></span></p>`;
   }
-  if(s.ans!=null)h+=`<div class="ans${!isNew&&pv.ans==null?' in':''}">Antwort: ${esc(s.ans)}</div>`;
+  if(s.ans!=null){
+   h+=`<div class="ans${!isNew&&pv.ans==null?' in':''}">Antwort: ${esc(s.ans)}</div>`;
+   if(cur.aimg){const a=host?curAImg:(aimgC&&aimgC.cid===s.cid?aimgC.d:null);
+    if(a){const an=aimgAnim!==s.cid;aimgAnim=s.cid;h+=`<img class="qimg${an?' in':''}" src="${esc(a)}" alt="">`}
+    else h+=`<p style="color:#dfe3ff">Bild wird geladen<span class="dots"></span></p>`;}
+  }
   if(who)h+=`<p class="turn${!isNew&&pwho!==who?' in':''}"><b>${esc(who)}</b> ist dran!</p>`;else h+=`<p>${s.ans!=null?'':'Buzzer offen …'}</p>`;
   if(host){
    const ca=(((G[s.ri]||[])[cur.c]||{}).clues||[])[cur.r];
-   h+=`<div class="hostans">Nur für dich: ${esc(ca?ca.a:'')}</div><div class="row" style="margin-top:12px"><button class="ok" id="jy" ${who?'':'disabled'}>Richtig</button><button class="bad" id="jn2" ${who?'':'disabled'}>Falsch</button><button class="gold" id="rv" ${s.ans!=null?'disabled':''}>Antwort zeigen</button><button class="alt" id="sk" style="color:#fff">Beenden</button></div>`;
+   h+=`<div class="hostans">Nur für dich: ${esc(ca?ca.a:'')}</div><div class="row eq" style="margin-top:12px"><button class="ok" id="jy" ${who?'':'disabled'}>Richtig</button><button class="bad" id="jn2" ${who?'':'disabled'}>Falsch</button><button class="gold" id="rv" ${s.ans!=null?'disabled':''}>Antwort zeigen</button><button class="alt" id="sk" style="color:#fff">Beenden</button></div>`;
   }else{
    const mine=s.tried.includes(name),queued=s.queue.includes(name),off=mine||queued||s.ans!=null;
    h+=`<button class="buzz" id="bz" ${off?'disabled':''}>${mine?'Gesperrt':queued?'Gebuzzert ✓':s.ans!=null?'Vorbei':'BUZZ!'}</button>`;
@@ -249,6 +258,7 @@ function joinInit(){
   c.on('data',d=>{
    if(!d)return;
    if(d.t==='img'){imgC={cid:d.cid,d:d.d};if(S&&S.cid===d.cid)render();return}
+   if(d.t==='aimg'){aimgC={cid:d.cid,d:d.d};if(S&&S.cid===d.cid)render();return}
    if(d.t==='dup')return leave('join-name','Dieser Name ist in der Lobby schon vergeben.');
    if(d.t==='state'){const j=JSON.stringify(d.s);if(j===lastJ)return;lastJ=j;S=d.s;render()}
   });
@@ -263,6 +273,7 @@ function onMsg(c,d){
   c.pn=nm;
   if(!(nm in S.scores))S.scores[nm]=0;
   if(S.phase==='clue'&&curImg)try{c.send({t:'img',cid:S.cid,d:curImg})}catch(e){}
+  if(S.phase==='clue'&&S.ans!=null&&curAImg)try{c.send({t:'aimg',cid:S.cid,d:curAImg})}catch(e){}
   push();
  }else if(d.t==='buzz'&&c.pn&&S.phase==='clue'&&S.ans==null&&d.cid===S.cid&&!S.queue.includes(c.pn)){
   S.queue.push(c.pn);push();
@@ -271,21 +282,21 @@ function onMsg(c,d){
 function push(quiet){const m={t:'state',s:S};conns.forEach(c=>{try{c.open&&c.pn&&c.send(m)}catch(e){}});if(!quiet)render()}
 function pick(c,r){
  if(!S||S.phase!=='board'||S.used[c][r])return;
- const q=G[S.ri][c].clues[r];curImg=q.img||null;
- S.phase='clue';S.cid=Date.now();S.clue={c,r,v:(r+1)*100*S.mult,q:q.q.slice(0,600),img:!!curImg};S.queue=[];S.tried=[];S.ans=null;
+ const q=G[S.ri][c].clues[r];curImg=q.img||null;curAImg=q.aimg||null;
+ S.phase='clue';S.cid=Date.now();S.clue={c,r,v:(r+1)*100*S.mult,q:q.q.slice(0,600),img:!!curImg,aimg:!!curAImg};S.queue=[];S.tried=[];S.ans=null;
  if(curImg)conns.forEach(x=>{try{x.pn&&x.send({t:'img',cid:S.cid,d:curImg})}catch(e){}});
  push();
 }
 function loadRound(i){S.ri=i;S.mult=i+1;S.cats=G[i].map(c=>(c.n.trim()||'?').slice(0,30));S.used=G[i].map(c=>c.clues.map(q=>has(q)?0:1))}
-function reveal(){const c=S.clue;S.ans=(G[S.ri][c.c].clues[c.r].a||'').slice(0,300);push()}
+function reveal(){const c=S.clue;S.ans=(G[S.ri][c.c].clues[c.r].a||'').slice(0,300);if(curAImg)conns.forEach(x=>{try{x.pn&&x.send({t:'aimg',cid:S.cid,d:curAImg})}catch(e){}});push()}
 function judge(ok){
  const who=S.queue.find(x=>!S.tried.includes(x));if(!who)return;
  S.scores[who]=(S.scores[who]||0)+(ok?S.clue.v:-S.clue.v);
  if(ok)return finish();
  S.tried.push(who);push();
 }
-function finish(){curImg=null;S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.ans=null;S.queue=[];S.tried=[];push()}
-function leave(next,m){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;prev=null;lastJ='';curImg=imgC=imgAnim=null;role=null;busy=false;view=next||'home';msg=m||'';try{p&&p.destroy()}catch(e){}render()}
+function finish(){curImg=curAImg=null;S.used[S.clue.c][S.clue.r]=1;S.phase='board';S.clue=null;S.ans=null;S.queue=[];S.tried=[];push()}
+function leave(next,m){clearInterval(hb);const p=P;P=null;R=null;conns=[];S=null;prev=null;lastJ='';curImg=curAImg=imgC=aimgC=imgAnim=aimgAnim=null;role=null;busy=false;view=next||'home';msg=m||'';try{p&&p.destroy()}catch(e){}render()}
 render();
 </script>
 </body>
