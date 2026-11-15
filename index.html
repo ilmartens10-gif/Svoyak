@@ -3,17 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Jeopardy mit Freunden</title>
+<title>МОЯК</title>
 <style>
-:root{--bg:#f1f3fb;--fg:#14183a;--card:#fff;--line:#c9cfea;--blue:#1a2fb5;--tile:#2438d0;--gold:#ffcc33;--mut:#5a6090;--ok:#1f9d55;--bad:#d64545;
+:root{--bg:#eaf6ff;--fg:#0e2a47;--card:#fff;--line:#b7dbf1;--blue:#1f78bf;--tile:#3194dd;--gold:#9bd5fb;--mut:#4f7595;--ok:#1f9d55;--bad:#d64545;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0f26;--fg:#eef0ff;--card:#171b3f;--line:#2c3270;--mut:#9aa2d8;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0c0f26;--fg:#eef0ff;--card:#171b3f;--line:#2c3270;--mut:#9aa2d8;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+body{margin:0;background:linear-gradient(180deg,#f3faff,#d9edfc) fixed;color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 main{max-width:980px;margin:0 auto;padding:16px}
-h1{font:800 clamp(28px,6vw,44px) Georgia,serif;letter-spacing:.04em;text-align:center;color:var(--gold);text-shadow:0 2px 0 var(--blue);margin:8px 0 18px;animation:zoom .7s cubic-bezier(.2,1.3,.4,1)}
+h1{font:800 clamp(28px,6vw,44px) Georgia,serif;letter-spacing:.04em;text-align:center;color:var(--blue);text-shadow:0 2px 0 #fff,0 6px 16px rgba(31,120,191,.3);margin:8px 0 18px;animation:zoom .7s cubic-bezier(.2,1.3,.4,1)}
 h2{font:700 24px Georgia,serif;margin:0 0 6px}
 label{display:block;font-weight:600;margin-bottom:6px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
@@ -27,25 +25,26 @@ button:disabled{opacity:.45;cursor:default}
 .mut{color:var(--mut);font-size:14px}.err{color:var(--bad);font-weight:600}
 .grid{display:grid;gap:6px;margin:10px 0}
 .cat{background:var(--blue);color:#fff;font-weight:700;text-align:center;padding:10px 4px;border-radius:8px;font-size:clamp(11px,2.4vw,16px);text-transform:uppercase;display:flex;align-items:center;justify-content:center;min-height:52px;overflow-wrap:anywhere}
-.tile{background:var(--tile);color:var(--gold);font:800 clamp(18px,4.5vw,34px) Georgia,serif;padding:clamp(14px,4vw,30px) 4px;border-radius:8px}
+.tile{background:var(--tile);color:#fff;font:800 clamp(18px,4.5vw,34px) Georgia,serif;padding:clamp(14px,4vw,30px) 4px;border-radius:8px}
 .tile:disabled{opacity:1;cursor:default}
-.tile:not(:disabled):hover{transform:scale(1.06);box-shadow:0 4px 14px rgba(36,56,208,.45)}
+.tile:not(:disabled):hover{transform:scale(1.06);box-shadow:0 4px 14px rgba(31,120,191,.45)}
 .tile.used{background:transparent;border:1px dashed var(--line);color:transparent}
 .score{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
-.chip b{color:var(--blue)}@media (prefers-color-scheme:dark){.chip b{color:var(--gold)}}
-.code{font:800 26px ui-monospace,monospace;letter-spacing:.2em;color:var(--gold);background:var(--blue);padding:4px 14px;border-radius:10px}
-.ov{position:fixed;inset:0;background:rgba(5,8,40,.92);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;overflow:auto}
+.chip b{color:var(--blue)}
+.code{font:800 26px ui-monospace,monospace;letter-spacing:.2em;color:#fff;background:var(--blue);padding:4px 14px;border-radius:10px}
+.ov{position:fixed;inset:0;background:rgba(12,56,104,.88);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;overflow:auto}
 .ov .box{background:var(--tile);color:#fff;border-radius:16px;padding:24px;max-width:720px;width:100%;text-align:center}
 .q{font:700 clamp(20px,5vw,32px) Georgia,serif;margin:14px 0}
 .ans{background:#fff;color:#14183a;border-radius:10px;padding:10px;font-weight:700;margin:10px 0}
 .hostans{font-size:14px;opacity:.85}
-.buzz{font-size:28px;padding:22px 40px;background:var(--gold);color:#222;min-width:200px}
+.buzz{font-size:28px;padding:22px 40px;background:#fff;color:var(--blue);min-width:200px}
 .buzz:not(:disabled){animation:pulse 1.6s infinite}
 .buzz:disabled{filter:grayscale(1);opacity:.3;cursor:not-allowed}
 .ed{border-left:4px solid var(--blue);padding-left:10px;margin:10px 0}
 .ed .r{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}.ed .r>b{width:54px}.ed .r>input{flex:1 1 140px;width:auto}
 .imc{display:flex;gap:6px;align-items:center}.th{height:40px;border-radius:6px}.imb{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:8px 12px}.imc button{padding:8px 10px}.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}.eq>*{width:100%;min-height:48px}.eq.tabs{grid-template-columns:repeat(3,1fr)}
+.stack{display:grid;gap:10px}.stack>*{width:100%;min-height:48px}
 .c{max-width:440px;margin:0 auto;min-height:60vh;display:flex;flex-direction:column;justify-content:center;text-align:center}.c .card{width:100%}.c input{text-align:center}
 .lob{text-align:center;max-width:560px;margin-left:auto;margin-right:auto}
 .qimg{display:block;max-width:100%;max-height:40vh;margin:8px auto;border-radius:10px;background:#fff}.qimg.in{animation:zoom .5s cubic-bezier(.2,1.3,.4,1)}.rb{margin:10px 0 0;text-align:center}.rb.in{animation:zoom .5s}
@@ -58,8 +57,8 @@ button:disabled{opacity:.45;cursor:default}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes flip{from{transform:rotateX(90deg);opacity:0}to{transform:none;opacity:1}}
 @keyframes bump{40%{transform:scale(1.3);background:var(--gold);color:#222}}
-@keyframes burn{from{background:var(--tile);color:var(--gold);transform:scale(1.15) rotate(3deg)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,204,51,.75)}50%{box-shadow:0 0 0 18px rgba(255,204,51,0)}}
+@keyframes burn{from{background:var(--tile);color:#fff;transform:scale(1.15) rotate(3deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.85)}50%{box-shadow:0 0 0 18px rgba(255,255,255,0)}}
 @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
 .step{animation:rise .35s ease-out}
 .cat.in{animation:rise .5s backwards;animation-delay:calc(var(--d)*70ms)}
@@ -72,7 +71,7 @@ button:disabled{opacity:.45;cursor:default}
 </style>
 </head>
 <body>
-<main><h1>JEOPARDY!</h1><div id="app"></div></main>
+<main><h1>МОЯК</h1><div id="app"></div></main>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -100,8 +99,8 @@ function render(){
  const nameField=`<label for="nm">Dein Name</label><input id="nm" maxlength="20" value="${esc(name)}" placeholder="z. B. Alex" autocomplete="nickname">`;
  const nav=(back,label)=>`<div class="row eq" style="margin-top:12px"><button class="alt" id="bk">← Zurück</button><button id="go" ${busy?'disabled':''}>${label}</button></div>`;
  if(view==='home'){
-  a.innerHTML=`<div class="card step"><p class="mut">Spiele Jeopardy mit Freunden: Einer erstellt die Lobby (Moderator), die anderen treten mit dem Code bei und buzzern.</p>
-  <div class="row eq"><button id="mk">Lobby erstellen</button><button id="jn">Lobby beitreten</button></div>
+  a.innerHTML=`<div class="card step"><p class="mut">Spiele МОЯК mit Freunden: Einer erstellt die Lobby (Moderator), die anderen treten mit dem Code bei und buzzern.</p>
+  <div class="stack"><button id="mk">Lobby erstellen</button><button id="jn">Lobby beitreten</button></div>
   </div>${err}`;
   $('#mk').onclick=()=>go('host-name');$('#jn').onclick=()=>go('join-code');
  }else if(view==='host-name'){
@@ -195,7 +194,7 @@ function boardHtml(s,host,pv){
   const isNew=!pv||pv.phase!=='clue'||pv.cid!==s.cid;
   const pwho=pv&&pv.queue?pv.queue.find(x=>!pv.tried.includes(x)):null;
   h+=`<div class="ov${isNew?' in':''}"><div class="box"><div>${esc(s.cats[cur.c])} für ${cur.v}</div><div class="q">${esc(cur.q)}</div>`;
-  if(cur.img){
+  if(cur.img&&!(s.ans!=null&&cur.aimg)){
    const im=host?curImg:(imgC&&imgC.cid===s.cid?imgC.d:null);
    if(im){const an=imgAnim!==s.cid;imgAnim=s.cid;h+=`<img class="qimg${an?' in':''}" src="${esc(im)}" alt="">`}
    else h+=`<p style="color:#dfe3ff">Bild wird geladen<span class="dots"></span></p>`;
