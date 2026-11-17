@@ -50,6 +50,15 @@ body.g main{max-width:1200px;padding:8px;min-height:calc(100dvh - env(safe-area-
 body.g #app{flex:1;display:flex;flex-direction:column;min-width:0}
 body.g .rb{font-size:18px;margin:6px 0 0}body.g .score{margin:4px 0}
 .bd{flex:1 1 auto;margin:4px 0}.bd+.mut{margin:2px 0 0}
+body.tv main{max-width:none;padding:1.2vw}body.tv h1{font-size:clamp(28px,4vw,64px);margin:0 0 .6vw}
+body.tv .top .code{font-size:clamp(20px,2.4vw,44px)}body.tv .top,body.tv .mut{font-size:clamp(14px,1.6vw,28px)}
+body.tv .rb{font-size:clamp(18px,2.4vw,44px)}body.tv .chip{font-size:clamp(16px,2vw,38px);padding:.4vw 1.4vw}
+body.tv .cat{font-size:clamp(14px,2vw,38px);min-height:6vh}body.tv .tile{font-size:clamp(28px,5.5vw,110px)}
+body.tv .ov .box{max-width:94vw;min-height:80vh;display:flex;flex-direction:column;justify-content:center;padding:3vw}
+body.tv .ov .box>div:first-child{font-size:clamp(18px,2.4vw,44px)}
+body.tv .q,body.tv .ans{font-size:clamp(32px,5.5vw,110px)}body.tv .ans{padding:2vw}
+body.tv .ov p{font-size:clamp(20px,3vw,56px)}body.tv .qimg{max-height:48vh}
+body.tv .win,body.tv .lob h2{font-size:clamp(28px,4vw,80px)}body.tv .lob{max-width:80vw}
 .c{max-width:440px;margin:0 auto;min-height:60vh;display:flex;flex-direction:column;justify-content:center;text-align:center}.c .card{width:100%}.c input{text-align:center}
 .lob{text-align:center;max-width:560px;margin-left:auto;margin-right:auto}
 .qimg{display:block;max-width:100%;max-height:40vh;margin:8px auto;border-radius:10px;background:#fff}.qimg.in{animation:zoom .5s cubic-bezier(.2,1.3,.4,1)}.rb{margin:10px 0 0;text-align:center}.rb.in{animation:zoom .5s}
@@ -94,27 +103,28 @@ const sample3=()=>[sample(),
 let board=(()=>{try{const j=JSON.parse(localStorage.getItem('jp_board3'));if(Array.isArray(j)&&j.length===3)return j}catch(e){}try{const o=JSON.parse(localStorage.getItem('jp_board'));if(Array.isArray(o)&&o.length)return [o,[],[]]}catch(e){}return sample3()})();
 const save=()=>{try{localStorage.setItem('jp_board3',JSON.stringify(board));return true}catch(e){return false}};
 let view='home',role=null,name='',code='',R=null,S=null,msg='',busy=false,prev=null,lastJ='';
-let er=0,G=[],curImg=null,imgC=null,imgAnim=null,curAImg=null,aimgC=null,aimgAnim=null;const has=q=>!!(q.q.trim()||q.img);
+let tv=false,er=0,G=[],curImg=null,imgC=null,imgAnim=null,curAImg=null,aimgC=null,aimgAnim=null;const has=q=>!!(q.q.trim()||q.img);
 try{name=localStorage.getItem('jp_name')||''}catch(e){}
 const go=v=>{view=v;msg='';render()};
 
 function render(){
- const a=$('#app');document.body.classList.toggle('g',view==='game');a.className=['home','host-name','join-code','join-name'].includes(view)?'c':'';
+ const a=$('#app');document.body.classList.toggle('g',view==='game');document.body.classList.toggle('tv',view==='game'&&role==='tv');a.className=['home','host-name','join-code','join-name'].includes(view)?'c':'';
  const err=`<p class="${busy?'mut':'err'}">${esc(msg)}</p>`;
  const nameField=`<label for="nm">Dein Name</label><input id="nm" maxlength="20" value="${esc(name)}" placeholder="z. B. Alex" autocomplete="nickname">`;
  const nav=(back,label)=>`<div class="row eq" style="margin-top:12px"><button class="alt" id="bk">← Zurück</button><button id="go" ${busy?'disabled':''}>${label}</button></div>`;
  if(view==='home'){
   a.innerHTML=`<div class="card step"><p class="mut">Spiele МОЯК mit Freunden: Einer erstellt die Lobby (Moderator), die anderen treten mit dem Code bei und buzzern.</p>
   <div class="stack"><button id="mk">Lobby erstellen</button><button id="jn">Lobby beitreten</button></div>
+  <button class="alt" id="tv" style="width:100%;margin-top:10px">📺 Als Fernseher-Anzeige</button>
   </div>${err}`;
-  $('#mk').onclick=()=>go('host-name');$('#jn').onclick=()=>go('join-code');
+  $('#mk').onclick=()=>{tv=false;go('host-name')};$('#jn').onclick=()=>{tv=false;go('join-code')};$('#tv').onclick=()=>{tv=true;go('join-code')};
  }else if(view==='host-name'){
   a.innerHTML=`<div class="card step">${nameField}${nav('home','Weiter zu den Fragen')}</div>${err}`;
   $('#bk').onclick=()=>go('home');$('#go').onclick=()=>{name=$('#nm').value.trim().slice(0,20);if(!name){msg='Bitte gib einen Namen ein.';return render()}try{localStorage.setItem('jp_name',name)}catch(e){}go('edit')};
  }else if(view==='join-code'){
-  a.innerHTML=`<div class="card step"><label for="cd">Lobby-Code</label><input id="cd" maxlength="5" value="${esc(code.toUpperCase())}" placeholder="z. B. K7P2X" style="text-transform:uppercase" autocomplete="off">${nav('home','Weiter')}</div>${err}`;
+  a.innerHTML=`<div class="card step"><label for="cd">${tv?'📺 Fernseher-Anzeige: ':''}Lobby-Code</label><input id="cd" maxlength="5" value="${esc(code.toUpperCase())}" placeholder="z. B. K7P2X" style="text-transform:uppercase" autocomplete="off">${nav('home',tv?'Verbinden':'Weiter')}</div>${err}`;
   $('#bk').onclick=()=>go('home');
-  $('#go').onclick=()=>{const c=$('#cd').value.trim().toLowerCase();code=c;if(!/^[a-z0-9]{5}$/.test(c)){msg='Bitte einen gültigen 5-stelligen Code eingeben.';return render()}go('join-name')};
+  $('#go').onclick=()=>{const c=$('#cd').value.trim().toLowerCase();code=c;if(!/^[a-z0-9]{5}$/.test(c)){msg='Bitte einen gültigen 5-stelligen Code eingeben.';return render()}tv?startTv():go('join-name')};
  }else if(view==='join-name'){
   a.innerHTML=`<div class="card step"><p>Lobby <span class="code">${esc(code.toUpperCase())}</span></p>${nameField}${nav('join-code','Beitreten')}</div>${err}`;
   $('#bk').onclick=()=>go('join-code');$('#go').onclick=()=>start('player');
@@ -173,13 +183,13 @@ function lobbyHtml(s,host,pv){
  const names=Object.keys(s.scores);
  return `<div class="card step lob" style="margin-top:14px"><h2>Wartezimmer</h2>
  <p class="mut">Moderator: <b>${esc(s.host)}</b>. Teile den Code, damit die anderen beitreten können.</p>
- <div class="score">${names.map(n=>`<span class="chip${pv&&pv.phase==='lobby'&&n in pv.scores?'':' pop'}">${esc(n)}${n===name&&!host?' (du)':''}</span>`).join('')||'<span class="mut">Noch niemand da …</span>'}</div>
+ <div class="score">${names.map(n=>`<span class="chip${pv&&pv.phase==='lobby'&&n in pv.scores?'':' pop'}">${esc(n)}${n===name&&!host&&role!=='tv'?' (du)':''}</span>`).join('')||'<span class="mut">Noch niemand da …</span>'}</div>
  <p class="mut">${s.rn===1?'1 Runde':s.rn+' Runden'}. Kategorien in Runde 1: ${s.cats.map(esc).join(', ')}</p>
  ${host?`<button class="gold" id="st" style="width:100%" ${names.length?'':'disabled'}>Spiel starten (${names.length} Spieler)</button>`:`<p class="mut">Warte auf den Moderator<span class="dots"></span></p>`}</div>`;
 }
 function boardHtml(s,host,pv){
- const n=s.cats.length,cur=s.clue,fresh=!pv||pv.phase==='lobby'||pv.ri!==s.ri,open=s.used.flat().filter(x=>!x).length;
- let h=`<h2 class="rb${fresh?' in':''}">Runde ${s.ri+1} von ${s.rn}${s.mult>1?` (Punkte ×${s.mult})`:''}</h2><div class="score">${Object.keys(s.scores).map(nm=>{const o=pv&&pv.scores[nm];const k=o===undefined?' pop':o!==s.scores[nm]?' bump':'';return `<span class="chip${k}">${esc(nm)}${nm===name&&!host?' (du)':''}: <b>${s.scores[nm]}</b></span>`}).join('')}</div>`;
+ const tvm=role==='tv',n=s.cats.length,cur=s.clue,fresh=!pv||pv.phase==='lobby'||pv.ri!==s.ri,open=s.used.flat().filter(x=>!x).length;
+ let h=`<h2 class="rb${fresh?' in':''}">Runde ${s.ri+1} von ${s.rn}${s.mult>1?` (Punkte ×${s.mult})`:''}</h2><div class="score">${Object.keys(s.scores).map(nm=>{const o=pv&&pv.scores[nm];const k=o===undefined?' pop':o!==s.scores[nm]?' bump':'';return `<span class="chip${k}">${esc(nm)}${nm===name&&!host&&!tvm?' (du)':''}: <b>${s.scores[nm]}</b></span>`}).join('')}</div>`;
  h+=`<div class="grid bd" style="grid-template-columns:repeat(${n},1fr);grid-template-rows:auto repeat(5,minmax(56px,1fr))">`+s.cats.map((c,i)=>`<div class="cat${fresh?' in':''}" style="--d:${i}">${esc(c)}</div>`).join('');
  for(let r=0;r<5;r++)for(let c=0;c<n;c++){
   const used=s.used[c][r],burn=used&&pv&&pv.ri===s.ri&&pv.used[c]&&pv.used[c][r]===0;
@@ -198,8 +208,8 @@ function boardHtml(s,host,pv){
   const who=s.queue.find(x=>!s.tried.includes(x));
   const isNew=!pv||pv.phase!=='clue'||pv.cid!==s.cid;
   const pwho=pv&&pv.queue?pv.queue.find(x=>!pv.tried.includes(x)):null;
-  h+=`<div class="ov${isNew?' in':''}"><div class="box"><div>${esc(s.cats[cur.c])} für ${cur.v}</div><div class="q">${esc(cur.q)}</div>`;
-  if(cur.img&&!(s.ans!=null&&cur.aimg)){
+  h+=`<div class="ov${isNew?' in':''}"><div class="box"><div>${esc(s.cats[cur.c])} für ${cur.v}</div>${tvm&&s.ans!=null?'':`<div class="q">${esc(cur.q)}</div>`}`;
+  if(cur.img&&!(s.ans!=null&&(cur.aimg||tvm))){
    const im=host?curImg:(imgC&&imgC.cid===s.cid?imgC.d:null);
    if(im){const an=imgAnim!==s.cid;imgAnim=s.cid;h+=`<img class="qimg${an?' in':''}" src="${esc(im)}" alt="">`}
    else h+=`<p style="color:#dfe3ff">Bild wird geladen<span class="dots"></span></p>`;
@@ -214,7 +224,7 @@ function boardHtml(s,host,pv){
   if(host){
    const ca=(((G[s.ri]||[])[cur.c]||{}).clues||[])[cur.r];
    h+=`<div class="hostans">Nur für dich: ${esc(ca?ca.a:'')}</div><div class="row eq" style="margin-top:12px"><button class="ok" id="jy" ${who?'':'disabled'}>Richtig</button><button class="bad" id="jn2" ${who?'':'disabled'}>Falsch</button><button class="gold" id="rv" ${s.ans!=null?'disabled':''}>Antwort zeigen</button><button class="alt" id="sk" style="color:#fff">Beenden</button></div>`;
-  }else{
+  }else if(!tvm){
    const mine=s.tried.includes(name),queued=s.queue.includes(name),off=mine||queued||s.ans!=null;
    h+=`<button class="buzz" id="bz" ${off?'disabled':''}>${mine?'Gesperrt':queued?'Gebuzzert ✓':s.ans!=null?'Vorbei':'BUZZ!'}</button>`;
   }
@@ -223,6 +233,7 @@ function boardHtml(s,host,pv){
  return h;
 }
 let P=null,conns=[],hb=null;
+function startTv(){if(typeof Peer==='undefined'){msg='PeerJS konnte nicht geladen werden (Internetverbindung prüfen).';return render()}busy=true;msg='Verbinde …';render();joinInit()}
 function start(r){
  if(r!=='host')name=$('#nm').value.trim().slice(0,20);
  if(!name){msg='Bitte gib einen Namen ein.';return render()}
@@ -255,10 +266,10 @@ function hostInit(t){
 }
 function joinInit(){
  const p=P=new Peer();
- p.on('error',e=>{if(P!==p)return;e.type==='peer-unavailable'?leave('join-code','Lobby nicht gefunden. Bitte den Code prüfen.'):leave('join-name','Verbindungsfehler: '+e.type)});
+ p.on('error',e=>{if(P!==p)return;e.type==='peer-unavailable'?leave('join-code','Lobby nicht gefunden. Bitte den Code prüfen.'):leave(tv?'join-code':'join-name','Verbindungsfehler: '+e.type)});
  p.on('open',()=>{
   const c=R=p.connect('jpd-'+code,{reliable:true});
-  c.on('open',()=>{role='player';view='game';busy=false;S=null;lastJ='';prev=null;msg='';c.send({t:'hello',name});render()});
+  c.on('open',()=>{role=tv?'tv':'player';view='game';busy=false;S=null;lastJ='';prev=null;msg='';c.send(tv?{t:'hello',tv:1}:{t:'hello',name});if(tv)try{navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}render()});
   c.on('data',d=>{
    if(!d)return;
    if(d.t==='img'){imgC={cid:d.cid,d:d.d};if(S&&S.cid===d.cid)render();return}
@@ -271,6 +282,10 @@ function joinInit(){
 }
 function onMsg(c,d){
  if(!d||!S)return;
+ if(d.t==='hello'&&d.tv){c.tv=true;
+  if(S.phase==='clue'&&curImg)try{c.send({t:'img',cid:S.cid,d:curImg})}catch(e){}
+  if(S.phase==='clue'&&S.ans!=null&&curAImg)try{c.send({t:'aimg',cid:S.cid,d:curAImg})}catch(e){}
+  push();return}
  if(d.t==='hello'&&typeof d.name==='string'&&d.name.trim()){
   const nm=d.name.trim().slice(0,20),l=nm.toLowerCase();
   if(l===S.host.toLowerCase()||conns.some(x=>x!==c&&x.pn&&x.pn.toLowerCase()===l)){try{c.send({t:'dup'})}catch(e){}setTimeout(()=>c.close(),400);return}
@@ -283,16 +298,16 @@ function onMsg(c,d){
   S.queue.push(c.pn);push();
  }
 }
-function push(quiet){const m={t:'state',s:S};conns.forEach(c=>{try{c.open&&c.pn&&c.send(m)}catch(e){}});if(!quiet)render()}
+function push(quiet){const m={t:'state',s:S};conns.forEach(c=>{try{c.open&&(c.pn||c.tv)&&c.send(m)}catch(e){}});if(!quiet)render()}
 function pick(c,r){
  if(!S||S.phase!=='board'||S.used[c][r])return;
  const q=G[S.ri][c].clues[r];curImg=q.img||null;curAImg=q.aimg||null;
  S.phase='clue';S.cid=Date.now();S.clue={c,r,v:(r+1)*100*S.mult,q:q.q.slice(0,600),img:!!curImg,aimg:!!curAImg};S.queue=[];S.tried=[];S.ans=null;
- if(curImg)conns.forEach(x=>{try{x.pn&&x.send({t:'img',cid:S.cid,d:curImg})}catch(e){}});
+ if(curImg)conns.forEach(x=>{try{(x.pn||x.tv)&&x.send({t:'img',cid:S.cid,d:curImg})}catch(e){}});
  push();
 }
 function loadRound(i){S.ri=i;S.mult=i+1;S.cats=G[i].map(c=>(c.n.trim()||'?').slice(0,30));S.used=G[i].map(c=>c.clues.map(q=>has(q)?0:1))}
-function reveal(){const c=S.clue;S.ans=(G[S.ri][c.c].clues[c.r].a||'').slice(0,300);if(curAImg)conns.forEach(x=>{try{x.pn&&x.send({t:'aimg',cid:S.cid,d:curAImg})}catch(e){}});push()}
+function reveal(){const c=S.clue;S.ans=(G[S.ri][c.c].clues[c.r].a||'').slice(0,300);if(curAImg)conns.forEach(x=>{try{(x.pn||x.tv)&&x.send({t:'aimg',cid:S.cid,d:curAImg})}catch(e){}});push()}
 function judge(ok){
  const who=S.queue.find(x=>!S.tried.includes(x));if(!who)return;
  S.scores[who]=(S.scores[who]||0)+(ok?S.clue.v:-S.clue.v);
